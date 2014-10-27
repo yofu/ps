@@ -1,0 +1,128 @@
+package ps
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+)
+
+type Canvas struct {
+	stuck bytes.Buffer
+}
+
+func NewCanvas() *Canvas {
+	return new(Canvas)
+}
+
+func MoveTo(x, y int) string {
+	return fmt.Sprintf("%d %d moveto\n", x, y)
+}
+func FMoveTo(x, y float64) string {
+	return fmt.Sprintf("%f %f moveto\n", x, y)
+}
+
+func RMoveTo(x, y int) string {
+	return fmt.Sprintf("%d %d rmoveto\n", x, y)
+}
+func FRMoveTo(x, y float64) string {
+	return fmt.Sprintf("%f %f rmoveto\n", x, y)
+}
+
+func LineTo(x, y int) string {
+	return fmt.Sprintf("%d %d lineto\n", x, y)
+}
+func FLineTo(x, y float64) string {
+	return fmt.Sprintf("%f %f lineto\n", x, y)
+}
+
+func RLineTo(x, y int) string {
+	return fmt.Sprintf("%d %d rlineto\n", x, y)
+}
+func FRLineTo(x, y float64) string {
+	return fmt.Sprintf("%f %f rlineto\n", x, y)
+}
+
+func Arc(x, y, r, start, end int) string {
+	return fmt.Sprintf("%d %d %d %d %d arc\n", x, y, r, start, end)
+}
+
+func FArc(x, y, r, start, end float64) string {
+	return fmt.Sprintf("%f %f %f %f %f arc\n", x, y, r, start, end)
+}
+
+func (cvs *Canvas) WriteTo(otp io.Writer) (int64, error) {
+	return cvs.stuck.WriteTo(otp)
+}
+
+func (cvs *Canvas) Stuck(str string) {
+	cvs.stuck.WriteString(str)
+}
+
+func (cvs *Canvas) Def(key string, value ...string) {
+	switch len(value) {
+	case 0:
+		return
+	case 1:
+		cvs.Stuck(fmt.Sprintf("/%s %s def\n", key, value))
+	default:
+		var tmp bytes.Buffer
+		tmp.WriteString(fmt.Sprintf("/%s {\n", key))
+		for _, v := range value {
+			tmp.WriteString(v)
+		}
+		tmp.WriteString(fmt.Sprintf("}def\n"))
+		cvs.Stuck(tmp.String())
+	}
+}
+
+func (cvs *Canvas) LineWidth(width int) {
+	cvs.Stuck(fmt.Sprintf("%d setlinewidth\n", width))
+}
+
+func (cvs *Canvas) SetRGBColor(r, g, b float64) {
+	cvs.Stuck(fmt.Sprintf("%f %f %f setrgbcolor\n", r, g, b))
+}
+
+func (cvs *Canvas) SetCMYKColor(c, m, y, k float64) {
+	cvs.Stuck(fmt.Sprintf("%f %f %f %f setrgbcolor\n", c, m, y, k))
+}
+
+func (cvs *Canvas) Path(closed bool, name string, lines ...string) {
+	var tmp bytes.Buffer
+	tmp.WriteString("newpath\n")
+	for _, l := range lines {
+		tmp.WriteString(l)
+	}
+	if closed {
+		tmp.WriteString("closepath\n")
+	}
+	tmp.WriteString(fmt.Sprintf("%s\n", name))
+	cvs.Stuck(tmp.String())
+}
+func (cvs *Canvas) Stroke(closed bool, lines ...string) {
+	cvs.Path(closed, "stroke", lines...)
+}
+func (cvs *Canvas) Fill(closed bool, lines ...string) {
+	cvs.Path(closed, "fill", lines...)
+}
+func (cvs *Canvas) EOFill(closed bool, lines ...string) {
+	cvs.Path(closed, "eofill", lines...)
+}
+
+func (cvs *Canvas) Line(x0, y0, x1, y1 int) {
+	cvs.Stroke(false,
+		MoveTo(x0, y0),
+		LineTo(x1, y1))
+}
+func (cvs *Canvas) FLine(x0, y0, x1, y1 float64) {
+	cvs.Stroke(false,
+		FMoveTo(x0, y0),
+		FLineTo(x1, y1))
+}
+
+func (cvs *Canvas) Circle(x, y, r int) {
+	cvs.Stroke(true, Arc(x, y, r, 0, 360))
+}
+func (cvs *Canvas) FCircle(x, y, r float64) {
+	cvs.Stroke(true, FArc(x, y, r, 0, 360))
+}
