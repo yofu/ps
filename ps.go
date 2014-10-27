@@ -6,12 +6,64 @@ import (
 	"io"
 )
 
-type Canvas struct {
+type Doc struct {
+	dsc    *DSC
+	canvas *Canvas
+}
+
+func NewDoc(title string) *Doc {
+	d := new(Doc)
+	d.dsc.Stuck(fmt.Sprintf("%%!PS-Adobe-3.0\n%%%%Title: %s\n", title))
+	return d
+}
+
+func (d *Doc) WriteTo(otp io.Writer) (int64, error) {
+	var tmp, rtn int64
+	var err error
+	tmp, err = d.dsc.WriteTo(otp)
+	if err != nil {
+		return rtn, err
+	}
+	rtn += tmp
+	otp.Write([]byte(fmt.Sprintf("Pages: %d", d.canvas.page)))
+	rtn++
+	tmp, err = d.canvas.WriteTo(otp)
+	if err != nil {
+		return rtn, err
+	}
+	rtn += tmp
+	return rtn, nil
+}
+
+func (d *Doc) Dsc(str string) {
+	d.dsc.Stuck(str)
+}
+
+type DSC struct {
 	stuck bytes.Buffer
 }
 
+func NewDSC() *DSC {
+	return new(DSC)
+}
+
+func (d *DSC) WriteTo(otp io.Writer) (int64, error) {
+	return d.stuck.WriteTo(otp)
+}
+
+func (d *DSC) Stuck(str string) {
+	d.stuck.WriteString(str)
+}
+
+type Canvas struct {
+	stuck bytes.Buffer
+	page  int
+}
+
 func NewCanvas() *Canvas {
-	return new(Canvas)
+	c := new(Canvas)
+	c.page = 1
+	return c
 }
 
 func MoveTo(x, y int) string {
@@ -58,6 +110,17 @@ func (cvs *Canvas) Stuck(str string) {
 	cvs.stuck.WriteString(str)
 }
 
+func (cvs *Canvas) Page(label string, lines ...string) {
+	var tmp bytes.Buffer
+	tmp.WriteString(fmt.Sprintf("%%%%Page: (%s) %d\n", label, cvs.page))
+	for _, l := range lines {
+		tmp.WriteString(l)
+	}
+	tmp.WriteString("showpage\n")
+	cvs.Stuck(tmp.String())
+	cvs.page++
+}
+
 func (cvs *Canvas) Def(key string, value ...string) {
 	switch len(value) {
 	case 0:
@@ -73,6 +136,16 @@ func (cvs *Canvas) Def(key string, value ...string) {
 		tmp.WriteString(fmt.Sprintf("}def\n"))
 		cvs.Stuck(tmp.String())
 	}
+}
+
+func (cvs *Canvas) ForAll(list string, value ...string) {
+	var tmp bytes.Buffer
+	tmp.WriteString(fmt.Sprintf("%s\n{\n", list))
+	for _, v := range value {
+		tmp.WriteString(v)
+	}
+	tmp.WriteString(fmt.Sprintf("}forall\n"))
+	cvs.Stuck(tmp.String())
 }
 
 func (cvs *Canvas) LineWidth(width int) {
