@@ -39,6 +39,11 @@ func (d *Doc) WriteTo(otp io.Writer) (int64, error) {
 		return rtn, err
 	}
 	rtn += tmp
+	val, err := otp.Write([]byte("showpage\n"))
+	if err != nil {
+		return rtn, err
+	}
+	rtn += int64(val)
 	return rtn, nil
 }
 
@@ -115,6 +120,25 @@ func (cvs *Canvas) WriteTo(otp io.Writer) (int64, error) {
 
 func (cvs *Canvas) Stuck(str string) (int, error) {
 	return cvs.stuck.WriteString(str)
+}
+
+func (cvs *Canvas) NewPage(label string) (int, error) {
+	var val, rtn int
+	var err error
+	var tmp bytes.Buffer
+	if cvs.page > 0 {
+		val, err = tmp.WriteString("showpage\n")
+		if err != nil {
+			return rtn, err
+		}
+		rtn += val
+	}
+	cvs.page++
+	val, err = tmp.WriteString(fmt.Sprintf("%%%%Page: (%s) %d\n", label, cvs.page))
+	if err != nil {
+		return rtn, err
+	}
+	return cvs.Stuck(tmp.String())
 }
 
 func (cvs *Canvas) Page(label string, lines ...string) (int, error) {
