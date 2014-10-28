@@ -39,7 +39,7 @@ func (d *Doc) WriteTo(otp io.Writer) (int64, error) {
 }
 
 func (d *Doc) Dsc(str string) (int, error) {
-	return d.dsc.Stuck(str)
+	return d.dsc.Stuck(fmt.Sprintf("%%%%%s", str))
 }
 
 type DSC struct {
