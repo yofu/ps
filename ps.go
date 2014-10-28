@@ -13,6 +13,8 @@ type Doc struct {
 
 func NewDoc(title string) *Doc {
 	d := new(Doc)
+	d.dsc = NewDSC()
+	d.Canvas = NewCanvas()
 	d.dsc.Stuck(fmt.Sprintf("%%!PS-Adobe-3.0\n%%%%Title: %s\n", title))
 	return d
 }
