@@ -22,18 +22,18 @@ func NewDoc(title string) *Doc {
 func (d *Doc) WriteTo(otp io.Writer) (int64, error) {
 	var tmp, rtn int64
 	var err error
-	tmp, err = d.dsc.WriteTo(otp)
-	if err != nil {
-		return rtn, err
-	}
-	rtn += tmp
 	if d.Canvas.page > 0 {
-		val, err := otp.Write([]byte(fmt.Sprintf("%%%%Pages: %d\n", d.Canvas.page)))
+		val, err := d.Dsc(fmt.Sprintf("Pages: %d\n", d.Canvas.page))
 		if err != nil {
 			return rtn, err
 		}
 		rtn += int64(val)
 	}
+	tmp, err = d.dsc.WriteTo(otp)
+	if err != nil {
+		return rtn, err
+	}
+	rtn += tmp
 	tmp, err = d.Canvas.WriteTo(otp)
 	if err != nil {
 		return rtn, err
@@ -51,8 +51,30 @@ func (d *Doc) Dsc(str string) (int, error) {
 	return d.dsc.Stuck(fmt.Sprintf("%%%%%s", str))
 }
 
+func (d *Doc) Setup(str string) (int, error) {
+	return d.dsc.Setup(str)
+}
+
+func (d *Doc) SetPaperSize(paper Paper) error {
+	var err error
+	_, err = d.Dsc(paper.Orientation())
+	if err != nil {
+		return err
+	}
+	_, err = d.Dsc(paper.DocumentMedia())
+	if err != nil {
+		return err
+	}
+	_, err = d.Setup(paper.SetPageDevice())
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 type DSC struct {
 	stuck bytes.Buffer
+	setup bytes.Buffer
 }
 
 func NewDSC() *DSC {
@@ -60,11 +82,37 @@ func NewDSC() *DSC {
 }
 
 func (d *DSC) WriteTo(otp io.Writer) (int64, error) {
-	return d.stuck.WriteTo(otp)
+	var tmp, rtn int64
+	var err error
+	tmp, err = d.stuck.WriteTo(otp)
+	if err != nil {
+		return rtn, err
+	}
+	rtn += tmp
+	val, err := otp.Write([]byte("%%BeginSetup\n"))
+	if err != nil {
+		return rtn, err
+	}
+	rtn += int64(val)
+	tmp, err = d.setup.WriteTo(otp)
+	if err != nil {
+		return rtn, err
+	}
+	rtn += tmp
+	val, err = otp.Write([]byte("%%EndSetup\n"))
+	if err != nil {
+		return rtn, err
+	}
+	rtn += int64(val)
+	return rtn, nil
 }
 
 func (d *DSC) Stuck(str string) (int, error) {
 	return d.stuck.WriteString(str)
+}
+
+func (d *DSC) Setup(str string) (int, error) {
+	return d.setup.WriteString(str)
 }
 
 type Canvas struct {
@@ -122,7 +170,7 @@ func (cvs *Canvas) Stuck(str string) (int, error) {
 	return cvs.stuck.WriteString(str)
 }
 
-func (cvs *Canvas) NewPage(label string) (int, error) {
+func (cvs *Canvas) NewPage(label string, paper Paper, setup ...string) (int, error) {
 	var val, rtn int
 	var err error
 	var tmp bytes.Buffer
@@ -137,6 +185,29 @@ func (cvs *Canvas) NewPage(label string) (int, error) {
 	val, err = tmp.WriteString(fmt.Sprintf("%%%%Page: (%s) %d\n", label, cvs.page))
 	if err != nil {
 		return rtn, err
+	}
+	rtn += val
+	if len(setup) > 0 || !paper.portrait {
+		val, err = tmp.WriteString("%%BeginPageSetup\n")
+		if err != nil {
+			return rtn, err
+		}
+		rtn += val
+		val, err = tmp.WriteString(paper.PageSetup())
+		if err != nil {
+			return rtn, err
+		}
+		for _, s := range setup {
+			val, err = tmp.WriteString(s)
+			if err != nil {
+				return rtn, err
+			}
+			rtn += val
+		}
+		val, err = tmp.WriteString("%%EndPageSetup\n")
+		if err != nil {
+			return rtn, err
+		}
 	}
 	return cvs.Stuck(tmp.String())
 }
