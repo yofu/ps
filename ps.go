@@ -8,7 +8,7 @@ import (
 
 type Doc struct {
 	dsc    *DSC
-	canvas *Canvas
+	Canvas *Canvas
 }
 
 func NewDoc(title string) *Doc {
@@ -25,12 +25,12 @@ func (d *Doc) WriteTo(otp io.Writer) (int64, error) {
 		return rtn, err
 	}
 	rtn += tmp
-	val, err := otp.Write([]byte(fmt.Sprintf("Pages: %d", d.canvas.page)))
+	val, err := otp.Write([]byte(fmt.Sprintf("Pages: %d", d.Canvas.page)))
 	if err != nil {
 		return rtn, err
 	}
 	rtn += int64(val)
-	tmp, err = d.canvas.WriteTo(otp)
+	tmp, err = d.Canvas.WriteTo(otp)
 	if err != nil {
 		return rtn, err
 	}
