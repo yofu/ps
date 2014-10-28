@@ -27,11 +27,13 @@ func (d *Doc) WriteTo(otp io.Writer) (int64, error) {
 		return rtn, err
 	}
 	rtn += tmp
-	val, err := otp.Write([]byte(fmt.Sprintf("Pages: %d", d.Canvas.page)))
-	if err != nil {
-		return rtn, err
+	if d.Canvas.page > 0 {
+		val, err := otp.Write([]byte(fmt.Sprintf("%%%%Pages: %d\n", d.Canvas.page)))
+		if err != nil {
+			return rtn, err
+		}
+		rtn += int64(val)
 	}
-	rtn += int64(val)
 	tmp, err = d.Canvas.WriteTo(otp)
 	if err != nil {
 		return rtn, err
@@ -67,7 +69,7 @@ type Canvas struct {
 
 func NewCanvas() *Canvas {
 	c := new(Canvas)
-	c.page = 1
+	c.page = 0
 	return c
 }
 
@@ -119,6 +121,7 @@ func (cvs *Canvas) Page(label string, lines ...string) (int, error) {
 	var val, rtn int
 	var err error
 	var tmp bytes.Buffer
+	cvs.page++
 	val, err = tmp.WriteString(fmt.Sprintf("%%%%Page: (%s) %d\n", label, cvs.page))
 	if err != nil {
 		return rtn, err
@@ -140,7 +143,6 @@ func (cvs *Canvas) Page(label string, lines ...string) (int, error) {
 	if err != nil {
 		return rtn, err
 	}
-	cvs.page++
 	return rtn, nil
 }
 
