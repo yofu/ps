@@ -187,7 +187,7 @@ func (cvs *Canvas) NewPage(label string, paper Paper, setup ...string) (int, err
 		return rtn, err
 	}
 	rtn += val
-	if len(setup) > 0 || !paper.portrait {
+	if len(setup) > 0 || !paper.Portrait {
 		val, err = tmp.WriteString("%%BeginPageSetup\n")
 		if err != nil {
 			return rtn, err
