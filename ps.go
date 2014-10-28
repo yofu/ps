@@ -25,8 +25,11 @@ func (d *Doc) WriteTo(otp io.Writer) (int64, error) {
 		return rtn, err
 	}
 	rtn += tmp
-	otp.Write([]byte(fmt.Sprintf("Pages: %d", d.canvas.page)))
-	rtn++
+	val, err := otp.Write([]byte(fmt.Sprintf("Pages: %d", d.canvas.page)))
+	if err != nil {
+		return rtn, err
+	}
+	rtn += int64(val)
 	tmp, err = d.canvas.WriteTo(otp)
 	if err != nil {
 		return rtn, err
@@ -35,8 +38,8 @@ func (d *Doc) WriteTo(otp io.Writer) (int64, error) {
 	return rtn, nil
 }
 
-func (d *Doc) Dsc(str string) {
-	d.dsc.Stuck(str)
+func (d *Doc) Dsc(str string) (int, error) {
+	return d.dsc.Stuck(str)
 }
 
 type DSC struct {
@@ -51,8 +54,8 @@ func (d *DSC) WriteTo(otp io.Writer) (int64, error) {
 	return d.stuck.WriteTo(otp)
 }
 
-func (d *DSC) Stuck(str string) {
-	d.stuck.WriteString(str)
+func (d *DSC) Stuck(str string) (int, error) {
+	return d.stuck.WriteString(str)
 }
 
 type Canvas struct {
@@ -106,96 +109,158 @@ func (cvs *Canvas) WriteTo(otp io.Writer) (int64, error) {
 	return cvs.stuck.WriteTo(otp)
 }
 
-func (cvs *Canvas) Stuck(str string) {
-	cvs.stuck.WriteString(str)
+func (cvs *Canvas) Stuck(str string) (int, error) {
+	return cvs.stuck.WriteString(str)
 }
 
-func (cvs *Canvas) Page(label string, lines ...string) {
+func (cvs *Canvas) Page(label string, lines ...string) (int, error) {
+	var val, rtn int
+	var err error
 	var tmp bytes.Buffer
-	tmp.WriteString(fmt.Sprintf("%%%%Page: (%s) %d\n", label, cvs.page))
-	for _, l := range lines {
-		tmp.WriteString(l)
+	val, err = tmp.WriteString(fmt.Sprintf("%%%%Page: (%s) %d\n", label, cvs.page))
+	if err != nil {
+		return rtn, err
 	}
-	tmp.WriteString("showpage\n")
-	cvs.Stuck(tmp.String())
+	rtn += val
+	for _, l := range lines {
+		val, err = tmp.WriteString(l)
+		if err != nil {
+			return rtn, err
+		}
+		rtn += val
+	}
+	val, err = tmp.WriteString("showpage\n")
+	if err != nil {
+		return rtn, err
+	}
+	rtn += val
+	rtn, err = cvs.Stuck(tmp.String())
+	if err != nil {
+		return rtn, err
+	}
 	cvs.page++
+	return rtn, nil
 }
 
-func (cvs *Canvas) Def(key string, value ...string) {
+func (cvs *Canvas) Def(key string, value ...string) (int, error) {
 	switch len(value) {
 	case 0:
-		return
+		return 0, nil
 	case 1:
-		cvs.Stuck(fmt.Sprintf("/%s %s def\n", key, value))
+		return cvs.Stuck(fmt.Sprintf("/%s %s def\n", key, value))
 	default:
+		var val, rtn int
+		var err error
 		var tmp bytes.Buffer
-		tmp.WriteString(fmt.Sprintf("/%s {\n", key))
-		for _, v := range value {
-			tmp.WriteString(v)
+		val, err = tmp.WriteString(fmt.Sprintf("/%s {\n", key))
+		if err != nil {
+			return rtn, err
 		}
-		tmp.WriteString(fmt.Sprintf("}def\n"))
-		cvs.Stuck(tmp.String())
+		rtn += val
+		for _, v := range value {
+			val, err = tmp.WriteString(v)
+			if err != nil {
+				return rtn, err
+			}
+			rtn += val
+		}
+		val, err = tmp.WriteString(fmt.Sprintf("}def\n"))
+		if err != nil {
+			return rtn, err
+		}
+		return cvs.Stuck(tmp.String())
 	}
 }
 
-func (cvs *Canvas) ForAll(list string, value ...string) {
+func (cvs *Canvas) ForAll(list string, value ...string) (int, error) {
+	var val, rtn int
+	var err error
 	var tmp bytes.Buffer
-	tmp.WriteString(fmt.Sprintf("%s\n{\n", list))
+	val, err = tmp.WriteString(fmt.Sprintf("%s\n{\n", list))
+	if err != nil {
+		return rtn, err
+	}
+	rtn += val
 	for _, v := range value {
-		tmp.WriteString(v)
+		val, err = tmp.WriteString(v)
+		if err != nil {
+			return rtn, err
+		}
+		rtn += val
 	}
-	tmp.WriteString(fmt.Sprintf("}forall\n"))
-	cvs.Stuck(tmp.String())
+	val, err = tmp.WriteString(fmt.Sprintf("}forall\n"))
+	if err != nil {
+		return rtn, err
+	}
+	rtn += val
+	return cvs.Stuck(tmp.String())
 }
 
-func (cvs *Canvas) LineWidth(width int) {
-	cvs.Stuck(fmt.Sprintf("%d setlinewidth\n", width))
+func (cvs *Canvas) LineWidth(width int) (int, error) {
+	return cvs.Stuck(fmt.Sprintf("%d setlinewidth\n", width))
 }
 
-func (cvs *Canvas) SetRGBColor(r, g, b float64) {
-	cvs.Stuck(fmt.Sprintf("%f %f %f setrgbcolor\n", r, g, b))
+func (cvs *Canvas) SetRGBColor(r, g, b float64) (int, error) {
+	return cvs.Stuck(fmt.Sprintf("%f %f %f setrgbcolor\n", r, g, b))
 }
 
-func (cvs *Canvas) SetCMYKColor(c, m, y, k float64) {
-	cvs.Stuck(fmt.Sprintf("%f %f %f %f setrgbcolor\n", c, m, y, k))
+func (cvs *Canvas) SetCMYKColor(c, m, y, k float64) (int, error) {
+	return cvs.Stuck(fmt.Sprintf("%f %f %f %f setrgbcolor\n", c, m, y, k))
 }
 
-func (cvs *Canvas) Path(closed bool, name string, lines ...string) {
+func (cvs *Canvas) Path(closed bool, name string, lines ...string) (int, error) {
+	var val, rtn int
+	var err error
 	var tmp bytes.Buffer
-	tmp.WriteString("newpath\n")
+	val, err = tmp.WriteString("newpath\n")
+	if err != nil {
+		return rtn, err
+	}
+	rtn += val
 	for _, l := range lines {
-		tmp.WriteString(l)
+		val, err = tmp.WriteString(l)
+		if err != nil {
+			return rtn, err
+		}
+		rtn += val
 	}
 	if closed {
-		tmp.WriteString("closepath\n")
+		val, err = tmp.WriteString("closepath\n")
+		if err != nil {
+			return rtn, err
+		}
+		rtn += val
 	}
-	tmp.WriteString(fmt.Sprintf("%s\n", name))
-	cvs.Stuck(tmp.String())
+	val, err = tmp.WriteString(fmt.Sprintf("%s\n", name))
+	if err != nil {
+		return rtn, err
+	}
+	return cvs.Stuck(tmp.String())
 }
-func (cvs *Canvas) Stroke(closed bool, lines ...string) {
-	cvs.Path(closed, "stroke", lines...)
+func (cvs *Canvas) Stroke(closed bool, lines ...string) (int, error) {
+	return cvs.Path(closed, "stroke", lines...)
 }
-func (cvs *Canvas) Fill(closed bool, lines ...string) {
-	cvs.Path(closed, "fill", lines...)
+func (cvs *Canvas) Fill(closed bool, lines ...string) (int, error) {
+	return cvs.Path(closed, "fill", lines...)
 }
-func (cvs *Canvas) EOFill(closed bool, lines ...string) {
-	cvs.Path(closed, "eofill", lines...)
+func (cvs *Canvas) EOFill(closed bool, lines ...string) (int, error) {
+	return cvs.Path(closed, "eofill", lines...)
 }
 
-func (cvs *Canvas) Line(x0, y0, x1, y1 int) {
-	cvs.Stroke(false,
+func (cvs *Canvas) Line(x0, y0, x1, y1 int) (int, error) {
+	return cvs.Stroke(false,
 		MoveTo(x0, y0),
 		LineTo(x1, y1))
 }
-func (cvs *Canvas) FLine(x0, y0, x1, y1 float64) {
-	cvs.Stroke(false,
+func (cvs *Canvas) FLine(x0, y0, x1, y1 float64) (int, error) {
+	return cvs.Stroke(false,
 		FMoveTo(x0, y0),
 		FLineTo(x1, y1))
 }
 
-func (cvs *Canvas) Circle(x, y, r int) {
-	cvs.Stroke(true, Arc(x, y, r, 0, 360))
+func (cvs *Canvas) Circle(x, y, r int) (int, error) {
+	return cvs.Stroke(true, Arc(x, y, r, 0, 360))
 }
-func (cvs *Canvas) FCircle(x, y, r float64) {
-	cvs.Stroke(true, FArc(x, y, r, 0, 360))
+func (cvs *Canvas) FCircle(x, y, r float64) (int, error) {
+	return cvs.Stroke(true, FArc(x, y, r, 0, 360))
 }
