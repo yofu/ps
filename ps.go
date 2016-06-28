@@ -357,9 +357,62 @@ func (cvs *Canvas) FLine(x0, y0, x1, y1 float64) (int, error) {
 		FLineTo(x1, y1))
 }
 
+func (cvs *Canvas) Polyline(coord [][]int) (int, error) {
+	if len(coord) < 2 {
+		return 0, fmt.Errorf("Polyline: not enough length")
+	}
+	lines := make([]string, len(coord))
+	lines[0] = MoveTo(coord[0][0], coord[0][1])
+	for i, c := range coord[1:] {
+		lines[i+1] = LineTo(c[0], c[1])
+	}
+	return cvs.Stroke(false, lines...)
+}
+func (cvs *Canvas) FPolyline(coord [][]float64) (int, error) {
+	if len(coord) < 2 {
+		return 0, fmt.Errorf("FPolyline: not enough length")
+	}
+	lines := make([]string, len(coord))
+	lines[0] = FMoveTo(coord[0][0], coord[0][1])
+	for i, c := range coord[1:] {
+		lines[i+1] = FLineTo(c[0], c[1])
+	}
+	return cvs.Stroke(false, lines...)
+}
+
+func (cvs *Canvas) Polygon(coord [][]int) (int, error) {
+	if len(coord) < 2 {
+		return 0, fmt.Errorf("Polyline: not enough length")
+	}
+	lines := make([]string, len(coord))
+	lines[0] = MoveTo(coord[0][0], coord[0][1])
+	for i, c := range coord[1:] {
+		lines[i+1] = LineTo(c[0], c[1])
+	}
+	return cvs.Fill(false, lines...)
+}
+func (cvs *Canvas) FPolygon(coord [][]float64) (int, error) {
+	if len(coord) < 2 {
+		return 0, fmt.Errorf("FPolyline: not enough length")
+	}
+	lines := make([]string, len(coord))
+	lines[0] = FMoveTo(coord[0][0], coord[0][1])
+	for i, c := range coord[1:] {
+		lines[i+1] = FLineTo(c[0], c[1])
+	}
+	return cvs.Fill(false, lines...)
+}
+
 func (cvs *Canvas) Circle(x, y, r int) (int, error) {
 	return cvs.Stroke(true, Arc(x, y, r, 0, 360))
 }
 func (cvs *Canvas) FCircle(x, y, r float64) (int, error) {
 	return cvs.Stroke(true, FArc(x, y, r, 0, 360))
+}
+
+func (cvs *Canvas) FilledCircle(x, y, r int) (int, error) {
+	return cvs.Fill(true, Arc(x, y, r, 0, 360))
+}
+func (cvs *Canvas) FFilledCircle(x, y, r float64) (int, error) {
+	return cvs.Fill(true, FArc(x, y, r, 0, 360))
 }
